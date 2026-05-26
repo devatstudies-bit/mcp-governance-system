@@ -333,6 +333,7 @@ mtgs/
 | [Configuration](docs/configuration.md) | All environment variables |
 | [ADR Index](docs/adr/) | Architecture Decision Records |
 | [Workflow Diagrams](docs/workflow-diagrams.md) | 11 Mermaid diagrams — architecture, pipelines, state machines |
+| [Failure Mode Analysis](docs/failure-mode-analysis.md) | 20 failure modes across 12 layers — severity, current mitigations, hardening backlog |
 | [Roadmap](ROADMAP.md) | Build phases — what's shipped and what's planned |
 
 ---
