@@ -1,0 +1,147 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mtgs"
+version = "1.0.0"
+description = "MCP Tool Governance System — production-grade linter and impact analyzer for MCP tool registries"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+
+dependencies = [
+    # ── Web Framework ──────────────────────────────────────────────────────────
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.9",
+
+    # ── Data Validation ────────────────────────────────────────────────────────
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.4.0",
+
+    # ── Database ───────────────────────────────────────────────────────────────
+    "sqlalchemy[asyncio]>=2.0.35",
+    "asyncpg>=0.29.0",            # async PostgreSQL driver
+    "alembic>=1.13.0",
+    "psycopg2-binary>=2.9.9",     # sync driver (Alembic env.py)
+
+    # ── Azure SDKs ─────────────────────────────────────────────────────────────
+    "openai>=1.45.0",             # Azure OpenAI uses openai SDK
+    "azure-search-documents>=11.6.0",
+    "azure-identity>=1.18.0",
+    "azure-keyvault-secrets>=4.8.0",
+
+    # ── Task Queue ─────────────────────────────────────────────────────────────
+    "celery[redis]>=5.4.0",
+    "redis>=5.0.0",
+    "kombu>=5.3.0",
+
+    # ── Auth ───────────────────────────────────────────────────────────────────
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "httpx>=0.27.0",
+
+    # ── CLI ────────────────────────────────────────────────────────────────────
+    "click>=8.1.0",
+    "rich>=13.7.0",
+    "typer>=0.12.0",
+
+    # ── Utilities ──────────────────────────────────────────────────────────────
+    "python-dotenv>=1.0.0",
+    "python-dateutil>=2.9.0",
+    "structlog>=24.1.0",          # structured JSON logging
+    "orjson>=3.10.0",             # fast JSON
+    "tenacity>=9.0.0",            # retry with backoff
+
+    # ── Observability ──────────────────────────────────────────────────────────
+    "opentelemetry-api>=1.26.0",
+    "opentelemetry-sdk>=1.26.0",
+    "opentelemetry-instrumentation-fastapi>=0.47b0",
+    "opentelemetry-exporter-otlp>=1.26.0",
+
+    # ── Text Processing (lexical analysis) ─────────────────────────────────────
+    "rapidfuzz>=3.9.0",           # fast Levenshtein / edit distance
+    "numpy>=2.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # ── Testing ────────────────────────────────────────────────────────────────
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-xdist>=3.6.0",        # parallel test execution
+    "httpx>=0.27.0",              # async test client
+    "respx>=0.21.0",              # mock HTTP calls
+    "factory-boy>=3.3.0",         # test data factories
+    "faker>=28.0.0",
+    "freezegun>=1.5.0",           # time travel in tests
+
+    # ── DB Testing ─────────────────────────────────────────────────────────────
+    "testcontainers>=4.7.0",      # real DB in Docker for integration tests
+    "aiosqlite>=0.20.0",          # SQLite async for unit/integration tests
+
+    # ── Code Quality ───────────────────────────────────────────────────────────
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+    "pre-commit>=3.8.0",
+
+    # ── Performance Testing ────────────────────────────────────────────────────
+    "locust>=2.31.0",
+]
+
+[project.scripts]
+mtgs = "cli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mtgs*", "cli*"]
+
+# ── Ruff (linting + formatting) ────────────────────────────────────────────────
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "PTH", "SIM", "TID"]
+ignore = ["E501", "B008", "B904"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mtgs", "cli"]
+
+# ── Mypy ───────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+# ── Pytest ─────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = [
+    # Coverage flags intentionally NOT set here — run with:
+    #   pytest --cov=mtgs/core        (unit tests)
+    #   pytest --cov=mtgs             (full coverage, Phase 4+)
+    # CI enforces --cov-fail-under=80 per phase via the workflow file.
+    "-v",
+]
+markers = [
+    "unit: pure unit tests (no I/O)",
+    "integration: integration tests (requires DB / Redis)",
+    "e2e: end-to-end tests (full stack)",
+    "slow: tests that call real LLM APIs",
+]
+
+# ── Coverage ───────────────────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["mtgs"]
+omit = ["*/migrations/*", "*/tests/*", "*/__pycache__/*"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

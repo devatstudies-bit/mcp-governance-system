@@ -1,0 +1,127 @@
+version: "3.9"
+
+# ── MTGS Development Stack ────────────────────────────────────────────────────
+# Start everything: docker compose -f docker/docker-compose.yml up -d
+# Run API only:     docker compose -f docker/docker-compose.yml up -d db redis
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mtgs_user
+      POSTGRES_PASSWORD: mtgs_password
+      POSTGRES_DB: mtgs_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mtgs_user -d mtgs_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── MTGS API ─────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: development
+      APP_SECRET_KEY: dev-secret-key-change-in-prod
+      DATABASE_URL: postgresql+asyncpg://mtgs_user:mtgs_password@db:5432/mtgs_dev
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      JWT_SECRET_KEY: dev-jwt-secret-change-in-prod-must-be-long
+      # Azure credentials — override via .env or environment
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-placeholder}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-https://placeholder.openai.azure.com}
+      AZURE_SEARCH_ENDPOINT: ${AZURE_SEARCH_ENDPOINT:-https://placeholder.search.windows.net}
+      AZURE_SEARCH_API_KEY: ${AZURE_SEARCH_API_KEY:-placeholder}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ..:/app
+    command: uvicorn mtgs.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── Celery Analysis Worker ──────────────────────────────────────────────────
+  worker-analysis:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      APP_ENV: development
+      APP_SECRET_KEY: dev-secret-key-change-in-prod
+      DATABASE_URL: postgresql+asyncpg://mtgs_user:mtgs_password@db:5432/mtgs_dev
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      JWT_SECRET_KEY: dev-jwt-secret-change-in-prod-must-be-long
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-placeholder}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-https://placeholder.openai.azure.com}
+      AZURE_SEARCH_ENDPOINT: ${AZURE_SEARCH_ENDPOINT:-https://placeholder.search.windows.net}
+      AZURE_SEARCH_API_KEY: ${AZURE_SEARCH_API_KEY:-placeholder}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ..:/app
+    command: >
+      celery -A mtgs.workers.celery_app worker
+      --loglevel=info
+      -Q analysis,embeddings
+      --concurrency=4
+
+  # ── Celery Simulation Worker ────────────────────────────────────────────────
+  worker-simulation:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      APP_ENV: development
+      APP_SECRET_KEY: dev-secret-key-change-in-prod
+      DATABASE_URL: postgresql+asyncpg://mtgs_user:mtgs_password@db:5432/mtgs_dev
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      JWT_SECRET_KEY: dev-jwt-secret-change-in-prod-must-be-long
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-placeholder}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-https://placeholder.openai.azure.com}
+      AZURE_SEARCH_ENDPOINT: ${AZURE_SEARCH_ENDPOINT:-https://placeholder.search.windows.net}
+      AZURE_SEARCH_API_KEY: ${AZURE_SEARCH_API_KEY:-placeholder}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ..:/app
+    command: >
+      celery -A mtgs.workers.celery_app worker
+      --loglevel=info
+      -Q simulation
+      --concurrency=2
+
+volumes:
+  postgres_data:

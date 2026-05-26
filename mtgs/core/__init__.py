@@ -1,0 +1,1 @@
+"""MTGS core business logic."""
