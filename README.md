@@ -323,6 +323,7 @@ mtgs/
 
 | Document | Description |
 |---|---|
+| [Local Testing Guide](docs/local-testing-guide.md) | 3-tier local setup — unit tests, Docker smoke test, full Azure pipeline |
 | [Getting Started](docs/getting-started.md) | Installation, first run, dev setup |
 | [Architecture](docs/architecture.md) | Component design, data flow, scaling |
 | [API Reference](docs/api-reference.md) | All REST endpoints with examples |
